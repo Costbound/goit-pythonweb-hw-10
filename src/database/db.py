@@ -1,7 +1,9 @@
 import contextlib
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
-from src.conf.config import config
+
+from src.conf.config import settings
+
 
 class DatabaseSessionManager:
     def __init__(self, url: str):
@@ -9,13 +11,13 @@ class DatabaseSessionManager:
         self._session_maker: async_sessionmaker = async_sessionmaker(
             bind=self._engine,
             autoflush=False,
-            autocommit=False, 
+            autocommit=False,
         )
 
     @contextlib.asynccontextmanager
     async def session(self):
         if self._session_maker is None:
-            raise Exception('Database session maker is not initialized')
+            raise Exception("Database session maker is not initialized")
         session = self._session_maker()
         try:
             yield session
@@ -25,7 +27,9 @@ class DatabaseSessionManager:
         finally:
             await session.close()
 
-sessionmanager = DatabaseSessionManager(config.DB_URL)
+
+sessionmanager = DatabaseSessionManager(settings.DB_URL)
+
 
 async def get_db():
     async with sessionmanager.session() as session:

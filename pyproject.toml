@@ -13,7 +13,11 @@ dependencies = [
     "greenlet (>=3.2.4,<4.0.0)",
     "phonenumbers (>=9.0.18,<10.0.0)",
     "uvicorn (>=0.38.0,<0.39.0)",
-    "faker (>=38.0.0,<39.0.0)"
+    "faker (>=38.0.0,<39.0.0)",
+    "pydantic-settings (>=2.12.0,<3.0.0)",
+    "python-jose[cryptography] (>=3.5.0,<4.0.0)",
+    "bcrypt (<4.0)",
+    "passlib (>=1.7.4,<2.0.0)",
 ]
 
 [build-system]

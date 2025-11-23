@@ -1,4 +1,14 @@
-class Config:
-    DB_URL = "postgresql+asyncpg://postgres:567234@localhost:5432/goit-pythonweb-hw-08"
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-config = Config
+
+class Settings(BaseSettings):
+    DB_URL: str
+    JWT_SECRET: str
+    JWT_ALGORITHM: str
+    JWT_EXPIRATION_SECONDS: int
+    model_config = SettingsConfigDict(
+        extra="ignore", env_file=".env", env_file_encoding="utf-8", case_sensitive=True
+    )
+
+
+settings = Settings()  # type: ignore[arg-type]

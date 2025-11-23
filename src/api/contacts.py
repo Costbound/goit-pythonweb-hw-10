@@ -1,11 +1,12 @@
 from typing import List
 
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 
 
 from src.database.db import get_db
+from src.database.models import User
 from src.schemas import (
     ContactResponse,
     ContactModel,
@@ -13,14 +14,16 @@ from src.schemas import (
     ContactUpdate,
 )
 from src.services.contacts import ContactService
+from src.services.auth import get_current_user
 
 router = APIRouter(prefix="/contacts", tags=["contacts"])
 
 
 @router.get("", response_model=List[ContactShortResponse])
 async def get_contacts(
-    page: int = 1,
-    show: int = 10,
+    user: User = Depends(get_current_user),
+    page: int = Query(1, ge=1),
+    show: int = Query(10, ge=1),
     first_name: str | None = None,
     last_name: str | None = None,
     email: str | None = None,
@@ -28,6 +31,7 @@ async def get_contacts(
 ):
     contact_service = ContactService(db)
     contacts = await contact_service.get_contacts(
+        user,
         page,
         show,
         filter={
@@ -39,10 +43,14 @@ async def get_contacts(
     return contacts
 
 
-@router.get("{contact_id}", response_model=ContactResponse)
-async def get_contact(contact_id: int, db: AsyncSession = Depends(get_db)):
+@router.get("/{contact_id}", response_model=ContactResponse)
+async def get_contact(
+    contact_id: int,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     contact_service = ContactService(db)
-    contact = await contact_service.get_contact(contact_id)
+    contact = await contact_service.get_contact(user, contact_id)
     if not contact:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found"
@@ -50,18 +58,22 @@ async def get_contact(contact_id: int, db: AsyncSession = Depends(get_db)):
     return contact
 
 
-@router.post("", response_model=ContactResponse)
-async def create_contact(contact: ContactModel, db: AsyncSession = Depends(get_db)):
+@router.post("", response_model=ContactResponse, status_code=status.HTTP_201_CREATED)
+async def create_contact(
+    contact: ContactModel,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     contact_service = ContactService(db)
     try:
-        return await contact_service.create_contact(contact)
+        return await contact_service.create_contact(user, contact)
     except IntegrityError as e:
-        if "contacts_email_key" in str(e.orig):
+        if "uq_contact_email_user" in str(e.orig):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Contact with this email already exists",
             )
-        elif "contacts_phone_key" in str(e.orig):
+        elif "uq_contact_phone_user" in str(e.orig):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Contact with this phone number already exists",
@@ -73,10 +85,13 @@ async def create_contact(contact: ContactModel, db: AsyncSession = Depends(get_d
 
 @router.patch("{contact_id}", response_model=ContactResponse)
 async def update_contact(
-    contact_id: int, contact: ContactUpdate, db: AsyncSession = Depends(get_db)
+    contact_id: int,
+    contact: ContactUpdate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     contact_service = ContactService(db)
-    updated_contact = await contact_service.update_contact(contact_id, contact)
+    updated_contact = await contact_service.update_contact(user, contact_id, contact)
     if not updated_contact:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found"
@@ -85,9 +100,13 @@ async def update_contact(
 
 
 @router.delete("{contact_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_contact(contact_id: int, db: AsyncSession = Depends(get_db)):
+async def delete_contact(
+    contact_id: int,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     contact_service = ContactService(db)
-    deleted_contact = await contact_service.delete_contact(contact_id)
+    deleted_contact = await contact_service.delete_contact(user, contact_id)
     if deleted_contact is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found"
@@ -97,8 +116,10 @@ async def delete_contact(contact_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.get("/birthdays/upcoming", response_model=List[ContactShortResponse])
 async def get_upcoming_birthdays(
-    days_ahead: int = 7, db: AsyncSession = Depends(get_db)
+    days_ahead: int = 7,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     contact_service = ContactService(db)
-    contacts = await contact_service.get_upcoming_birthdays(days_ahead)
+    contacts = await contact_service.get_upcoming_birthdays(user, days_ahead)
     return contacts

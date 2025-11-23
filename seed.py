@@ -1,13 +1,16 @@
 import asyncio
 from datetime import date, timedelta
 from faker import Faker
-from sqlalchemy import delete, text, select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
-from src.conf.config import config
-from src.database.models import Contact
+from src.conf.config import settings as config
+from src.database.models import Contact, User
 
 fake = Faker()
+
+# Set a default user_id for all contacts (adjust as needed)
+DEFAULT_USER_ID = 2
 
 
 async def seed_contacts(session, count: int = 20):
@@ -15,11 +18,8 @@ async def seed_contacts(session, count: int = 20):
     contacts = []
 
     for i in range(count):
-        # Generate birthdays spread throughout the year
-        # Some in the past, some upcoming
         days_offset = fake.random_int(min=-180, max=180)
         birthday = date.today() + timedelta(days=days_offset)
-        # Keep only month and day, vary the birth year
         birthday = birthday.replace(year=fake.random_int(min=1950, max=2005))
 
         contact = Contact(
@@ -31,6 +31,7 @@ async def seed_contacts(session, count: int = 20):
             additional_info=fake.text(max_nb_chars=100)
             if fake.boolean(chance_of_getting_true=30)
             else None,
+            user_id=DEFAULT_USER_ID,  # <-- required by new model
         )
         contacts.append(contact)
 
@@ -44,10 +45,8 @@ async def seed_contacts_with_upcoming_birthdays(session, count: int = 5):
     contacts = []
 
     for i in range(count):
-        # Birthday in next 7 days
         days_ahead = fake.random_int(min=0, max=7)
         upcoming_date = date.today() + timedelta(days=days_ahead)
-        # Use random birth year
         birthday = upcoming_date.replace(year=fake.random_int(min=1960, max=2000))
 
         contact = Contact(
@@ -57,6 +56,7 @@ async def seed_contacts_with_upcoming_birthdays(session, count: int = 5):
             phone=f"+380{fake.random_number(digits=9, fix_len=True)}",
             birthday=birthday,
             additional_info="Birthday coming soon!",
+            user_id=DEFAULT_USER_ID,  # <-- required by new model
         )
         contacts.append(contact)
 
@@ -67,7 +67,6 @@ async def seed_contacts_with_upcoming_birthdays(session, count: int = 5):
 
 async def clear_database(session):
     """Clear all contacts from database"""
-    # Use SQLAlchemy delete statement
     stmt = delete(Contact)
     result = await session.execute(stmt)
     await session.commit()
@@ -83,25 +82,24 @@ async def get_contacts_count(session):
 
 
 async def main():
-    # Create async engine
     engine = create_async_engine(config.DB_URL, echo=False)
-
-    # Create session maker
     async_session = async_sessionmaker(engine, expire_on_commit=False)
 
     async with async_session() as session:
-        # Optional: Clear existing data
+        # Ensure default user exists
+        user = await session.get(User, DEFAULT_USER_ID)
+        if not user:
+            user = User(email="seeduser@example.com", hashed_password="not_a_real_hash")
+            session.add(user)
+            await session.commit()
+            print(f"👤 Created default user with id {user.id}")
+
         confirm = input("Do you want to clear existing data? (y/n): ")
         if confirm.lower() == "y":
             await clear_database(session)
 
-        # Seed regular contacts
         await seed_contacts(session, count=20)
-
-        # Seed contacts with upcoming birthdays
         await seed_contacts_with_upcoming_birthdays(session, count=5)
-
-        # Get total count
         total = await get_contacts_count(session)
 
         print("\n✨ Database seeded successfully!")

@@ -4,7 +4,7 @@ from datetime import date
 from sqlalchemy import Integer, and_, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.database.models import Contact
+from src.database.models import Contact, User
 from src.schemas import ContactModel, ContactUpdate
 
 
@@ -13,9 +13,9 @@ class ContactRepository:
         self.db = db_session
 
     async def get_contacts(
-        self, skip: int, limit: int, filter: dict | None = None
+        self, user: User, skip: int, limit: int, filter: dict | None = None
     ) -> List[Contact]:
-        stmt = select(Contact)
+        stmt = select(Contact).filter_by(user_id=user.id)
 
         if filter:
             conditions = []
@@ -32,34 +32,27 @@ class ContactRepository:
 
         stmt = stmt.offset(skip).limit(limit)
 
-        from sqlalchemy.dialects import postgresql
-
-        compiled = stmt.compile(
-            dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}
-        )
-        print(f"DEBUG - SQL with values: {compiled}")
-
         contacts = await self.db.execute(stmt)
         result = list(contacts.scalars().all())
         print(result)
         return result
 
-    async def get_contact(self, contact_id: int) -> Contact | None:
-        stmt = select(Contact).where(Contact.id == contact_id)
+    async def get_contact(self, user: User, contact_id: int) -> Contact | None:
+        stmt = select(Contact).filter_by(id=contact_id, user_id=user.id)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def create_contact(self, body: ContactModel) -> Contact:
-        new_contact = Contact(**body.model_dump(exclude_unset=True))
+    async def create_contact(self, user: User, body: ContactModel) -> Contact:
+        new_contact = Contact(**body.model_dump(exclude_unset=True), user_id=user.id)
         self.db.add(new_contact)
         await self.db.commit()
         await self.db.refresh(new_contact)
         return new_contact
 
     async def update_contact(
-        self, contact_id: int, body: ContactUpdate
+        self, user: User, contact_id: int, body: ContactUpdate
     ) -> Contact | None:
-        contact = await self.get_contact(contact_id)
+        contact = await self.get_contact(user, contact_id)
         if contact:
             for key, value in body.model_dump(exclude_unset=True).items():
                 setattr(contact, key, value)
@@ -69,8 +62,8 @@ class ContactRepository:
             return contact
         return contact
 
-    async def delete_contact(self, contact_id: int) -> Contact | None:
-        contact = await self.get_contact(contact_id)
+    async def delete_contact(self, user: User, contact_id: int) -> Contact | None:
+        contact = await self.get_contact(user, contact_id)
         if contact:
             await self.db.delete(contact)
             await self.db.commit()
@@ -78,11 +71,12 @@ class ContactRepository:
         return contact
 
     async def get_contacts_with_birthday_in_period(
-        self, start_date: date, end_date: date
+        self, user: User, start_date: date, end_date: date
     ) -> List[Contact]:
         """Get contacts who will have a birthday between two dates"""
 
         stmt = select(Contact).where(
+            Contact.user_id == user.id,
             Contact.birthday.isnot(None),
             cast(func.extract("year", func.age(start_date, Contact.birthday)), Integer)
             != cast(
