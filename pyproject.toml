@@ -20,6 +20,7 @@ dependencies = [
     "passlib (>=1.7.4,<2.0.0)",
     "fastapi-mail (>=1.5.8,<2.0.0)",
     "slowapi (>=0.1.9,<0.2.0)",
+    "cloudinary (>=1.44.1,<2.0.0)",
 ]
 
 [build-system]

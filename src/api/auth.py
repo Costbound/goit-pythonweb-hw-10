@@ -4,7 +4,6 @@ from fastapi import (
     Depends,
     HTTPException,
     status,
-    Security,
     BackgroundTasks,
     Request,
 )
@@ -97,7 +96,7 @@ async def generate_access_token(
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
+            detail="Unauthorized",
             headers={"WWW-Authenticate": "Bearer"},
         )
     new_access_token = await create_access_token(data={"sub": user.email})

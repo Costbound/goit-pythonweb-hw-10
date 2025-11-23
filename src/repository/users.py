@@ -1,8 +1,6 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from fastapi import HTTPException
-
 from src.database.models import User
 from src.schemas import UserCreate
 
@@ -34,6 +32,14 @@ class UserRepository:
         await self.db.refresh(new_user)
         return new_user
 
-    async def set_email_verified(self, user: User) -> None:
+    async def set_email_verified(self, user: User) -> User:
         user.email_verified = True
         await self.db.commit()
+        await self.db.refresh(user)
+        return user
+
+    async def update_user_avatar(self, user: User, avatar_url: str) -> User:
+        user.avatar_url = avatar_url
+        await self.db.commit()
+        await self.db.refresh(user)
+        return user

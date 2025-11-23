@@ -27,7 +27,7 @@ app.include_router(users.router, prefix="/api", tags=["users"])
 
 @app.exception_handler(StarletteHTTPException)
 async def custom_404_handler(request, exc):
-    if exc.status_code == 404:
+    if exc.status_code == 404 or exc.status_code == 405:
         return JSONResponse(
             status_code=404,
             content={"message": "Route not found."},
