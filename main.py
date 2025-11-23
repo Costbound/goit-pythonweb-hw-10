@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from slowapi.errors import RateLimitExceeded
@@ -7,10 +8,17 @@ from slowapi.errors import RateLimitExceeded
 from src.api import auth
 from src.api import contacts
 from src.api import users
+from src.conf.config import settings
 
 
 app = FastAPI()
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(contacts.router, prefix="/api", tags=["contacts"])
 app.include_router(auth.router, prefix="/api", tags=["auth"])

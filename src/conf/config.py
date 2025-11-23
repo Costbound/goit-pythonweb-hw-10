@@ -1,4 +1,4 @@
-from pydantic import EmailStr, SecretStr
+from pydantic import EmailStr, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_SECONDS: int
     REFRESH_TOKEN_EXPIRE_SECONDS: int
     VERIFICATION_TOKEN_EXPIRE_SECONDS: int
+    CORS_ORIGINS: list[str] = []
 
     SMTP_USER: str
     SMTP_PASSWORD: SecretStr
@@ -23,6 +24,12 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         extra="ignore", env_file=".env", env_file_encoding="utf-8", case_sensitive=True
     )
+
+    @field_validator("CORS_ORIGINS", mode="before")
+    def parse_cors_origins_string(cls, v):
+        if isinstance(v, str):
+            return [i.strip() for i in v.split(",")]
+        return v
 
 
 settings = Settings()  # type: ignore[arg-type]
