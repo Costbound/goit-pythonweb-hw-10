@@ -28,13 +28,11 @@ class ContactRepository:
 
             if conditions:
                 stmt = stmt.where(and_(*conditions))
-            print(conditions)
 
         stmt = stmt.offset(skip).limit(limit)
 
         contacts = await self.db.execute(stmt)
         result = list(contacts.scalars().all())
-        print(result)
         return result
 
     async def get_contact(self, user: User, contact_id: int) -> Contact | None:

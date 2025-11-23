@@ -48,3 +48,4 @@ class User(Base):
         DateTime, nullable=False, default=func.now()
     )
     avatar_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    refresh_token: Mapped[str | None] = mapped_column(String(255), nullable=True)
