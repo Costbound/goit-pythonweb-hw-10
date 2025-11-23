@@ -96,3 +96,7 @@ class Token(BaseModel):
 
 class TokenRefreshRequest(BaseModel):
     refresh_token: str
+
+
+class EmailVerificationRequest(BaseModel):
+    email: EmailStr

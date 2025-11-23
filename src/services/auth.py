@@ -103,3 +103,30 @@ async def verify_refresh_token(token: str, db: AsyncSession) -> User | None:
         return user
     except JWTError:
         return None
+
+
+def create_eamil_token(data: dict) -> str:
+    to_encode = data.copy()
+    expire = datetime.now(UTC) + timedelta(
+        seconds=settings.VERIFICATION_TOKEN_EXPIRE_SECONDS
+    )
+    to_encode.update({"exp": expire, "iat": datetime.now(UTC)})
+    token = jwt.encode(to_encode, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
+    return token
+
+
+def get_email_from_token(token: str) -> str:
+    invalid_token_exception = HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        detail="Invalid token",
+    )
+    try:
+        payload = jwt.decode(
+            token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM]
+        )
+        email = payload.get("sub")
+        if email is None:
+            raise invalid_token_exception
+        return email
+    except JWTError:
+        raise invalid_token_exception
